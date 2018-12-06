@@ -1047,7 +1047,7 @@ namespace UnityEngine.Rendering.PostProcessing
         /// <param name="origProj">The original projection matrix</param>
         /// <param name="jitter">The jitter offset</param>
         /// <returns>A jittered projection matrix</returns>
-        public static Matrix4x4 GenerateJitteredProjectionMatrixFromOriginal(PostProcessRenderContext context, Matrix4x4 origProj, Vector2 jitter)
+        public static Matrix4x4 GenerateJitteredProjectionMatrixFromOriginal(int screenWidth, int screenHeight, Matrix4x4 origProj, Vector2 jitter)
         {
 #if UNITY_2017_2_OR_NEWER
             var planes = origProj.decomposeProjection;
@@ -1055,8 +1055,8 @@ namespace UnityEngine.Rendering.PostProcessing
             float vertFov = Math.Abs(planes.top) + Math.Abs(planes.bottom);
             float horizFov = Math.Abs(planes.left) + Math.Abs(planes.right);
 
-            var planeJitter = new Vector2(jitter.x * horizFov / context.screenWidth,
-                                          jitter.y * vertFov / context.screenHeight);
+            var planeJitter = new Vector2(jitter.x * horizFov / screenWidth,
+                                          jitter.y * vertFov / screenHeight);
 
             planes.left += planeJitter.x;
             planes.right += planeJitter.x;
@@ -1076,8 +1076,8 @@ namespace UnityEngine.Rendering.PostProcessing
             float tanVertFov = Math.Abs(tTan) + Math.Abs(bTan);
             float tanHorizFov = Math.Abs(lTan) + Math.Abs(rTan);
 
-            jitter.x *= tanHorizFov / context.screenWidth;
-            jitter.y *= tanVertFov / context.screenHeight;
+            jitter.x *= tanHorizFov / screenWidth;
+            jitter.y *= tanVertFov / screenHeight;
 
             float left = jitter.x + lTan;
             float right = jitter.x + rTan;
