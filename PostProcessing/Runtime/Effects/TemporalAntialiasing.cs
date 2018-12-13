@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 
 namespace UnityEngine.Rendering.PostProcessing
 {
@@ -88,16 +89,21 @@ namespace UnityEngine.Rendering.PostProcessing
 
         Vector2 GenerateRandomOffset()
         {
-            // The variance between 0 and the actual halton sequence values reveals noticeable instability
-            // in Unity's shadow maps, so we avoid index 0.
-            var offset = new Vector2(
-                    HaltonSeq.Get((sampleIndex & 1023) + 1, 2) - 0.5f,
-                    HaltonSeq.Get((sampleIndex & 1023) + 1, 3) - 0.5f
-                );
-
+            Vector2 offset = GetRandomOffset();
             if (++sampleIndex >= k_SampleCount)
                 sampleIndex = 0;
 
+            return offset;
+        }
+
+        Vector2 GetRandomOffset()
+        {
+            // The variance between 0 and the actual halton sequence values reveals noticeable instability
+            // in Unity's shadow maps, so we avoid index 0.
+            var offset = new Vector2(
+                HaltonSeq.Get((sampleIndex & 1023) + 1, 2) - 0.5f,
+                HaltonSeq.Get((sampleIndex & 1023) + 1, 3) - 0.5f
+            );
             return offset;
         }
 
@@ -130,6 +136,26 @@ namespace UnityEngine.Rendering.PostProcessing
             camera.useJitteredProjectionMatrixForTransparentRendering = false;
         }
 
+        // Must be called after GetJitteredProjectionMatrix() to work correctly.
+        public Matrix4x4 GetStereoJitteredProjectionMatrix(int screenWidth, int screenHeight, Camera camera, Camera.StereoscopicEye eye)
+        {
+            Matrix4x4 cameraProj;
+#if  UNITY_2017_3_OR_NEWER
+            jitter = GetRandomOffset();
+            jitter *= jitterSpread;
+            Matrix4x4 originalProj = camera.GetStereoProjectionMatrix(eye);
+            // Currently no support for custom jitter func, as VR devices would need to provide
+            // original projection matrix as input along with jitter 
+            cameraProj = RuntimeUtilities.GenerateJitteredProjectionMatrixFromOriginal(screenWidth, screenHeight, originalProj, jitter);
+            
+            // jitter has to be scaled for the actual eye texture size, not just the intermediate texture size
+            // which could be double-wide in certain stereo rendering scenarios
+            jitter = new Vector2(jitter.x / screenWidth, jitter.y / screenHeight);
+            
+#endif
+            return cameraProj;  
+        }
+        
         // TODO: We'll probably need to isolate most of this for SRPs
         public void ConfigureStereoJitteredProjectionMatrices(PostProcessRenderContext context)
         {
@@ -146,7 +172,7 @@ namespace UnityEngine.Rendering.PostProcessing
 
                 // Currently no support for custom jitter func, as VR devices would need to provide
                 // original projection matrix as input along with jitter 
-                var jitteredMatrix = RuntimeUtilities.GenerateJitteredProjectionMatrixFromOriginal(context, originalProj, jitter);
+                var jitteredMatrix = RuntimeUtilities.GenerateJitteredProjectionMatrixFromOriginal(context.screenWidth, context.screenHeight, originalProj, jitter);
                 context.camera.SetStereoProjectionMatrix(eye, jitteredMatrix);
             }
 
