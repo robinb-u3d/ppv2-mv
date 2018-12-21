@@ -76,12 +76,12 @@ Shader "Hidden/PostProcessing/TemporalAntialiasing"
         OutputSolver Solve(float2 motion, float2 texcoord)
         {
             const float2 k = _MainTex_TexelSize.xy;
-            float2 uv = UnityStereoClamp(texcoord - _Jitter);
+            float2 uv = texcoord - _Jitter;
 
-            float4 color = SAMPLE_TEXTURE2D(_MainTex, _MainTexSampler, uv);
+            float4 color = SAMPLE_TEXTURE2D(_MainTex, _MainTexSampler, UnityStereoTransformScreenSpaceTex(uv));
 
-            float4 topLeft = SAMPLE_TEXTURE2D(_MainTex, _MainTexSampler, UnityStereoClamp(uv - k * 0.5));
-            float4 bottomRight = SAMPLE_TEXTURE2D(_MainTex, _MainTexSampler, UnityStereoClamp(uv + k * 0.5));
+            float4 topLeft = SAMPLE_TEXTURE2D(_MainTex, _MainTexSampler, UnityStereoTransformScreenSpaceTex(uv - k * 0.5));
+            float4 bottomRight = SAMPLE_TEXTURE2D(_MainTex, _MainTexSampler, UnityStereoTransformScreenSpaceTex(uv + k * 0.5));
 
             float4 corners = 4.0 * (topLeft + bottomRight) - 2.0 * color;
 
@@ -92,7 +92,7 @@ Shader "Hidden/PostProcessing/TemporalAntialiasing"
             // Tonemap color and history samples
             float4 average = (corners + color) * 0.142857;
 
-            float4 history = SAMPLE_TEXTURE2D(_HistoryTex, sampler_HistoryTex, UnityStereoClamp(texcoord - motion));
+            float4 history = SAMPLE_TEXTURE2D(_HistoryTex, sampler_HistoryTex, UnityStereoTransformScreenSpaceTex(texcoord - motion));
 
             float motionLength = length(motion);
             float2 luma = float2(Luminance(average), Luminance(color));
@@ -124,7 +124,7 @@ Shader "Hidden/PostProcessing/TemporalAntialiasing"
         {
             float2 closest = GetClosestFragment(i.texcoordStereo);
             float2 motion = SAMPLE_TEXTURE2D(_CameraMotionVectorsTexture, sampler_CameraMotionVectorsTexture, closest).xy;
-            return Solve(motion, i.texcoordStereo);
+            return Solve(motion, i.texcoord);
         }
 
         OutputSolver FragSolverNoDilate(VaryingsDefault i)
